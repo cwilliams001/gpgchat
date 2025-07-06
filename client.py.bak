@@ -1,0 +1,74 @@
+"""
+GPG Chat Client
+"""
+
+import time
+import zmq
+import gpgio
+import config
+import threading
+
+class ChatClient(object):
+    def __init__(self):
+        self.context = zmq.Context()
+        self.sock = self.context.socket(zmq.REQ)
+        dest = "tcp://{}:{}".format(config.SERVER_HOSTNAME, config.SERVER_PORT)
+        self.sock.connect(dest)
+        self.last_message_index = -1
+
+    def fetch_message(self, index):
+        packet = "fetchmessage\n{}".format(index)
+        self.sock.send(packet)
+        response = self.sock.recv()
+        if response == "NOMESSAGE":
+            return None
+        else:
+            return response
+
+    def fetch_messages_since(self, last_index):
+        new_messages = []
+        msg = self.fetch_message(last_index + 1)
+        while msg != None:
+            last_index += 1
+            new_messages.append((last_index, msg))
+            msg = self.fetch_message(last_index + 1)
+        return new_messages
+
+    def send_message(self, msg):
+        packet = "send\n{}".format(msg)
+        self.sock.send(packet)
+        response = self.sock.recv()
+        if response != "OK":
+            raise RuntimeError("Message send failed.")
+
+    def listen(self):
+        while True:
+            time.sleep(1)
+            new_messages = self.fetch_messages_since(self.last_message_index)
+            for (index, message) in new_messages:
+                try:
+                    print gpgio.decrypt(message)
+                except gpgio.DecryptionError:
+                    print "ERROR: Failed to decrypt message."
+                print "\n------------------------------\n\n"
+                self.last_message_index = index
+
+    def talk(self):
+        while True:
+            msg_prompt = "Enter your message ending in ^D on a newline:"
+            msg = gpgio.prompt_encrypt(
+                prompt=msg_prompt,
+                recipients=config.RECIPIENTS,
+                sign=config.SIGNER_FINGERPRINT)
+            print ""
+            self.send_message(msg)
+            print ""
+
+if __name__ == '__main__':
+    client = ChatClient()
+    
+    listener_thread = threading.Thread(target=client.listen)
+    listener_thread.daemon = True
+    listener_thread.start()
+    
+    client.talk()
