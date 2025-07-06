@@ -1,69 +1,88 @@
-# gpgchat
+# gpgchat-modernized
 
-Simple chat service that sends PGP encrypted messages.
+A modernized, user-friendly version of the classic `gpgchat` application. This fork provides a simple, end-to-end encrypted chat service using PGP, with a focus on ease of use and a streamlined setup process.
 
-gpgchat encrypts message data end-to-end using the clients' system version of gpg.
-Note that while message data is encrypted, the intended recipients and sender
-of messages are NOT secret.
-The channel is susceptible to all sorts of traffic analysis.
-But it's one step closer to secure communication than a cleartext or
-"trusted server" messaging service.
+## Features
 
-gpgchat proudly sports an archaic and laughable user interface.
-As a user, you will probably want to run two terminal side
-by side. One running the ear, and the other the mouth.
+*   **End-to-End Encryption:** Messages are encrypted using your local GPG installation, ensuring privacy.
+*   **Interactive Client:** A single, interactive client for both sending and receiving messages.
+*   **Configuration Wizard:** A simple script to guide you through creating a GPG key and a configuration file.
+*   **Docker Support:** Run the client and server in isolated Docker containers.
+*   **Python 3:** The entire codebase has been migrated to Python 3.
 
-To use this service you must have a GPG key set up.
-A good [tutorial on GPG is available here](http://www.dewinter.com/gnupg_howto/english/GPGMiniHowto.html).
+## Getting Started
 
-## Requirements & Installation
+This guide will walk you through setting up and using `gpgchat` for the first time.
 
-gpgchat requires zeromq, python-gnupg, and gpg-agent
+### 1. Installation
 
-### Ubuntu
+First, you need to install the necessary dependencies.
 
-To install the requirements on Ubuntu:
+*   **On Ubuntu/Debian:**
+    ```bash
+    sudo apt-get update
+    sudo apt-get install libzmq-dev gnupg-agent
+    ```
+*   **On macOS (using [Homebrew](https://brew.sh/)):**
+    ```bash
+    brew install zeromq
+    ```
+    You will also need to install [GPG Suite](https://gpgtools.org/).
 
-    $ sudo apt-get install libzmq-dev gnupg-agent
-    $ pip install python-gnupg pyzmq
+Then, install the Python dependencies:
 
-If you just installed gpg-agent, you may need to log out and back in for it to start the daemon properly.
+```bash
+pip install -r requirements.txt
+```
 
-### OSX
+### 2. Configuration
 
-To install the requirements on OSX:
+Next, run the configuration wizard to create your GPG key and configuration file.
 
-First install [gpgtools](https://gpgtools.org/).
+```bash
+python3 configure.py
+```
 
-    $ brew install zeromq
-    $ pip install python-gnupg pyzmq
+The wizard will ask if you want to create a new GPG key or use an existing one. If you're new to GPG, it's recommended to let the script create a key for you. It will also prompt you for a filename for your configuration (e.g., `my_config.py`).
 
-If you just installed gpg-agent, you may need to log out and back in for it to start the daemon properly.
+### 3. Running the Server
 
-## Running gpgchat
+The server relays messages between clients. You'll need to run it on a machine that is accessible to all users.
 
-You will need to set up a private key and know get some friends public keys
-and mark them as trusted.
-Setting up keys is not covered here,
-but there is a thorough and fairly quick
-tutorial on GPG that I recommend [available here](http://www.dewinter.com/gnupg_howto/english/GPGMiniHowto.html).
+```bash
+python3 server.py --config my_config.py
+```
 
-First, create and edit your configuration file.
-The config file determines what server to connect
-and which keys to use for encrypting and signing.
+### 4. Running the Client
 
-    $ cp config_example.py config.py
+Now you can run the client to start chatting.
 
-To start a chat server run
+```bash
+python3 client.py --config my_config.py
+```
 
-    $ python server.py
+You can now send multiline messages. To send a message, press `Ctrl+D` on a new line.
 
-To listen to messages run
+## Docker Usage
 
-    $ python ear.py
+If you have Docker installed, you can run the client and server in containers.
 
-To send messages run
+1.  **Build the Docker Image:**
+    ```bash
+    docker build -t gpgchat .
+    ```
 
-    $ python mouth.py
+2.  **Run the Server:**
+    ```bash
+    docker run -it --rm -p 8387:8387 --name gpgchat-server gpgchat python3 server.py --config your_config.py
+    ```
 
-Messages are multiline and must end in `^D` on a newline.
+3.  **Run the Client:**
+    To run the client in a container, you need to mount your local GPG directory so it can access your keys.
+    ```bash
+    docker run -it --rm --name gpgchat-client -v ~/.gnupg:/root/.gnupg gpgchat python3 client.py --config your_config.py
+    ```
+
+## How It Works
+
+`gpgchat` uses a central server to relay messages, but all messages are encrypted end-to-end using GPG. This means the server owner cannot read the content of the messages. However, the server does know who is sending messages to whom.

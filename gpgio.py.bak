@@ -12,6 +12,16 @@ class DecryptionError(RuntimeError):
 class EncryptionError(RuntimeError):
   pass
 
+def multiline_input(prompt=None):
+  if prompt:
+    print(prompt)
+  s = ""
+  try:
+    while True:
+      s += "\n" + raw_input("> ")
+  except EOFError:
+    return s + "\n"
+
 def find_local_key(query):
   """
   Search for a local key
@@ -30,6 +40,15 @@ def find_local_key(query):
     return matches[0]
   else:
     raise RuntimeError("ambiguous query, many matches")
+
+def prompt_encrypt(prompt=None, recipients=[], sign=None):
+  msg_prompt = "Enter your message ending in ^D on a newline:"
+  msg_cleartext = multiline_input(msg_prompt)
+  crypt = gpg.encrypt(msg_cleartext, recipients, sign=sign)
+  if crypt:
+    return str(crypt)
+  else:
+    raise EncryptionError("Error Encrypting ({})".format(crypt.status))
 
 def decrypt(msg):
   crypt = gpg.decrypt(msg)
